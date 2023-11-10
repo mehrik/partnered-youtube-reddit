@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test": "npx ts-node src/main.ts"
+    "start": "npx ts-node src/main.ts"
   },
   "devDependencies": {
     "@tsconfig/node-lts": "^18.12.5",
