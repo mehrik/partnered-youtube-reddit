@@ -12,6 +12,7 @@
   "dependencies": {
     "dotenv": "^16.3.1",
     "googleapis": "^128.0.0",
+    "moment": "^2.29.4",
     "reddit": "^1.2.1"
   }
 }

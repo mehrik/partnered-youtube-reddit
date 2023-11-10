@@ -1,13 +1,15 @@
 import dotenv from 'dotenv';
 import {google, youtube_v3} from 'googleapis';
 import Reddit from 'reddit';
+import moment, {Moment} from 'moment';
 import { formatNumber } from './util';
 import {RedditChild, Comment, Verification} from './types'
 
 dotenv.config();
 
 const SUBREDDIT = process.env['SUBREDDIT'] as string;
-const ARTICLE = process.env['ARTICLE'] as string;
+const ARTICLE = process.env['SUBREDDIT_ARTICLE'] as string;
+const PREVIOUS_DAYS = process.env['PREVIOUS_DAYS'] as string;
 
 const reddit = new Reddit({
   username: process.env['REDDIT_USERNAME'] as string,
@@ -24,9 +26,10 @@ const youtube = google.youtube({
 
 /**
  * Returns list of top level comments from a Reddit Post (Article)
+ * Removes comments without youtubeLinks and comments created within a date range
  * @param articleSource
  */
-const getRedditComments = async (articleSource: string)=> {
+const getRedditComments = async (articleSource: string, startDate: Moment)=> {
   const youtubeLinkReg = /https:\/\/www.youtube.com[^\s\[\])(]*/;
   const redditUsernameReg = /u\/\w+/;
   const redditArticle: any[] = await reddit.get(articleSource);
@@ -35,11 +38,16 @@ const getRedditComments = async (articleSource: string)=> {
   const comments: Comment[] = replies.data.children.map((child: RedditChild)=> ({
     author: child.data.author,
     body: child.data.body,
-    created: child.data.created, // TODO: use for filtering for the day
-    created_utc: child.data.created_utc, // TODO: use for filtering for the day
+    created: child.data.created,
+    created_utc: child.data.created_utc,
     youtubeLink: child.data.body.match(youtubeLinkReg),
     redditUserName: child.data.body.match(redditUsernameReg), // TODO: possibly no required
-  })).filter((item: Comment) => item.youtubeLink?.length);
+  })).filter((item: Comment) => {
+    const commentCreated = moment.unix(item.created).utc()
+    const now = moment.utc();
+    const previous = moment.utc().subtract(PREVIOUS_DAYS, 'days');
+    return item.youtubeLink?.length && commentCreated.isBetween(previous, now);
+  });
 
   return comments;
 }
@@ -118,7 +126,14 @@ const setFlair = async (verification: Verification) => {
 }
 
 async function main() {
-  const comments = await getRedditComments(`${SUBREDDIT}/comments/${ARTICLE}`);
+  const startDate = moment.utc().subtract(PREVIOUS_DAYS, 'days');
+  const comments = await getRedditComments(`${SUBREDDIT}/comments/${ARTICLE}`, startDate);
+
+  if (comments.length === 0) {
+    console.log(`No new valid comments since ${startDate}`, );
+  } else {
+    console.log(`Reviewing ${comments.length} comments since ${startDate}`)
+  }
 
   for (let i = 0; i < comments.length; i++) {
     const verification = await verifyChannel(comments[i]);
