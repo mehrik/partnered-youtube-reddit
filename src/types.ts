@@ -5,15 +5,14 @@ export type RedditComment = {
   body: string;
   created: number;
   created_utc: number;
-}
+};
 
 export type RedditChild = {
   data: Comment;
-}
+};
 
 export interface Comment extends RedditComment {
   youtubeLink: string;
-  redditUsername: string;
 }
 
 export type Verification = {
@@ -24,5 +23,4 @@ export type Verification = {
     snippet: youtube_v3.Schema$ChannelSnippet;
     statistics: youtube_v3.Schema$ChannelStatistics;
   };
-}
-
+};
