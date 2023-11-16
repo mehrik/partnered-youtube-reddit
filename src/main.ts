@@ -12,7 +12,7 @@ const ARTICLE = process.env["SUBREDDIT_ARTICLE"] as string;
 const PREVIOUS_DAYS = process.env["PREVIOUS_DAYS"] as string;
 const FIRST_TIER_FLAIR_ID = process.env["FIRST_TIER_FLAIR_TEMPLATE_ID"];
 const SECOND_TIER_FLAIR_ID = process.env["SECOND_TIER_FLAIR_TEMPLATE_ID"];
-const MINIMUM_SUB_COUNT = process.env["MINIMUM_SUB_COUNT"] || 50000;
+const MINIMUM_SUB_COUNT = process.env["MINIMUM_SUB_COUNT"] || 100000;
 const MINIMUM_VIEW_COUNT = process.env["MINIMUM_VIEW_COUNT"] || 1000000;
 
 const reddit = new Reddit({
@@ -89,7 +89,7 @@ const verifyChannel = async (
 
     if (snippet?.description && statistics) {
       if (usernameReg.test(snippet.description)) {
-        console.log(`USER: ${comment.author} is verified`);
+        console.log(`/u/${comment.author} is verified`);
         return {
           reddit: {
             comment,
@@ -100,11 +100,11 @@ const verifyChannel = async (
           },
         };
       } else {
-        console.log(`USER: ${comment.author} is NOT verified`);
+        console.log(`/u/${comment.author} is NOT verified`);
       }
     }
   } else {
-    console.log(`NO CHANNEL FOUND for ${comment.author}`);
+    console.log(`/u/${comment.author} Error: No channel found.`);
   }
 };
 
