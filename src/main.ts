@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import { google, youtube_v3 } from "googleapis";
 import Reddit from "reddit";
 import moment, { Moment } from "moment";
-import { formatNumber } from "./util";
+import { formatNumber, formatYoutubeLink } from "./util";
 import { RedditChild, Comment, Verification } from "./types";
 
 dotenv.config();
@@ -72,7 +72,8 @@ const verifyChannel = async (
   const youtubeChannelListParams: youtube_v3.Params$Resource$Channels$List = {
     part: ["snippet,statistics"],
   };
-  const [, slug] = comment.youtubeLink[0].split("https://www.youtube.com/");
+  const formattedYoutubeLink = formatYoutubeLink(comment.youtubeLink[0]);
+  const [, slug] = formattedYoutubeLink.split("https://www.youtube.com/");
 
   if (slug.includes("user/")) {
     youtubeChannelListParams.forUsername = slug.split("user/")[1];
@@ -131,7 +132,7 @@ const setFlair = async (verification: Verification) => {
     const flairEmojiId =
       subCount >= +MINIMUM_SUB_COUNT || viewCount >= +MINIMUM_VIEW_COUNT
         ? FIRST_TIER_EMOJI_ID
-        : SECOND_TIER_EMOJI_ID;    
+        : SECOND_TIER_EMOJI_ID;
 
     await reddit.post(`${SUBREDDIT}/api/selectflair`, {
       name: author,

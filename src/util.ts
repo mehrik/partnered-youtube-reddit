@@ -14,3 +14,7 @@ export const formatNumber = (num: number, precision = 1) => {
 
   return num;
 };
+
+export const formatYoutubeLink = (youtubeLink: string) => {
+  return youtubeLink.replace(/\\/g, "");
+};
