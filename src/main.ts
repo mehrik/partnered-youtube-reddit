@@ -17,6 +17,17 @@ const SECOND_TIER_EMOJI_ID = process.env["SECOND_TIER_FLAIR_EMOJI_ID"];
 const MINIMUM_SUB_COUNT = process.env["MINIMUM_SUB_COUNT"] || 100000;
 const MINIMUM_VIEW_COUNT = process.env["MINIMUM_VIEW_COUNT"] || 1000000;
 
+/** Adding logging following https://stackoverflow.com/questions/8393636/configure-node-js-to-log-to-a-file-instead-of-the-console */
+var fs = require('fs');
+var util = require('util');
+var log_file = fs.createWriteStream(__dirname + '/debug.log', {flags : 'w'});
+var log_stdout = process.stdout;
+
+console.log = function(d) { //
+  log_file.write(util.format(d) + '\n');
+  log_stdout.write(util.format(d) + '\n');
+};
+
 const reddit = new Reddit({
   username: process.env["REDDIT_USERNAME"] as string,
   password: process.env["REDDIT_PASSWORD"] as string,
@@ -151,6 +162,7 @@ async function main() {
     startDate,
   );
 
+  console.log ('Starting Validation script. It is currently ${startDate}'); /*Swap to {moment.utc()} later */ 
   if (comments.length === 0) {
     console.log(`No new valid comments since ${startDate}`);
   } else {
