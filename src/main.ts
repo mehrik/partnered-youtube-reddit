@@ -162,7 +162,7 @@ async function main() {
     startDate,
   );
 
-  console.log ('Starting Validation script. It is currently ${startDate}'); /*Swap to {moment.utc()} later */ 
+  console.log(`Starting Validation script. It is currently ${moment().locale('en').format('LLLL')}`);
   if (comments.length === 0) {
     console.log(`No new valid comments since ${startDate}`);
   } else {
