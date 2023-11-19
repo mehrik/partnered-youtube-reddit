@@ -4,6 +4,7 @@ import Reddit from "reddit";
 import moment, { Moment } from "moment";
 import { formatNumber, formatYoutubeLink } from "./util";
 import { RedditChild, Comment, Verification } from "./types";
+import { logger } from "./logger";
 
 dotenv.config();
 
@@ -66,7 +67,7 @@ const getRedditComments = async (articleSource: string, startDate: Moment) => {
  * @param comment
  */
 const verifyChannel = async (
-  comment: Comment,
+  comment: Comment
 ): Promise<Verification | undefined> => {
   const usernameReg = new RegExp(`u/${comment.author}`, "i");
   const youtubeChannelListParams: youtube_v3.Params$Resource$Channels$List = {
@@ -74,6 +75,8 @@ const verifyChannel = async (
   };
   const formattedYoutubeLink = formatYoutubeLink(comment.youtubeLink[0]);
   const [, slug] = formattedYoutubeLink.split("https://www.youtube.com/");
+
+  logger.info(`Verifying /u/${comment.author} at ${formattedYoutubeLink}`);
 
   if (slug.includes("user/")) {
     youtubeChannelListParams.forUsername = slug.split("user/")[1];
@@ -84,7 +87,7 @@ const verifyChannel = async (
   }
 
   const { data: channel } = await youtube.channels.list(
-    youtubeChannelListParams,
+    youtubeChannelListParams
   );
 
   if (channel.items) {
@@ -92,7 +95,7 @@ const verifyChannel = async (
 
     if (snippet?.description && statistics) {
       if (usernameReg.test(snippet.description)) {
-        console.log(`/u/${comment.author} is verified`);
+        logger.info(`/u/${comment.author} is verified`);
         return {
           reddit: {
             comment,
@@ -103,11 +106,11 @@ const verifyChannel = async (
           },
         };
       } else {
-        console.log(`/u/${comment.author} is NOT verified`);
+        logger.warn(`/u/${comment.author} is NOT verified`);
       }
     }
   } else {
-    console.log(`/u/${comment.author} Error: No channel found.`);
+    logger.error(`CHANNEL NOT FOUND`);
   }
 };
 
@@ -120,6 +123,8 @@ const verifyChannel = async (
 const setFlair = async (verification: Verification) => {
   const { author } = verification.reddit.comment;
   const { statistics } = verification.youtube;
+
+  logger.info(`Setting flair for /u/${author}`);
 
   if (statistics?.subscriberCount && statistics.viewCount) {
     const subCount = +statistics.subscriberCount;
@@ -137,7 +142,7 @@ const setFlair = async (verification: Verification) => {
     await reddit.post(`${SUBREDDIT}/api/selectflair`, {
       name: author,
       text: `:${flairEmojiId}: Subs: ${formatNumber(
-        subCount,
+        subCount
       )} Views: ${formatNumber(viewCount)}`,
       flair_template_id: flairTemplateId,
     });
@@ -145,16 +150,21 @@ const setFlair = async (verification: Verification) => {
 };
 
 async function main() {
+  logger.info("Starting script");
   const startDate = moment.utc().subtract(PREVIOUS_DAYS, "days");
+
+  logger.info(
+    `Retrieving comments from https://www.reddit.com${SUBREDDIT}/comments/${ARTICLE}`
+  );
   const comments = await getRedditComments(
     `${SUBREDDIT}/comments/${ARTICLE}`,
-    startDate,
+    startDate
   );
 
   if (comments.length === 0) {
-    console.log(`No new valid comments since ${startDate}`);
+    logger.info(`No new valid comments since ${startDate}`);
   } else {
-    console.log(`Reviewing ${comments.length} comments since ${startDate}`);
+    logger.info(`Reviewing ${comments.length} comments since ${startDate}`);
   }
 
   for (let i = 0; i < comments.length; i++) {
@@ -164,9 +174,11 @@ async function main() {
       await setFlair(verification);
     }
   }
+
+  logger.info("Script complete");
 }
 
 main().catch((e) => {
-  console.error(e);
+  logger.fatal(e);
   throw e;
 });

@@ -13,7 +13,7 @@ unpack zip
 right click on extracted folder, open in terminal 
 
 Route 2: Install Github Desktop
-Do stuff and things 
+Use github desktop to install code base
 
 First time set up only:
 open cmd in folder then run "npm install" This installs all packages for projects. 
@@ -25,7 +25,7 @@ Set up .env file
 - Set origin/target subreddit
 - Set up flair / get flair ids 
 
-To run: 
+# directions to run: 
 Open terminal in installation folder and run "npm start"
 
 To change subreddit article... EXTRACT string between "comments/" and "rpartneredyoutube" from url as shown in this example:  
