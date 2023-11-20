@@ -17,6 +17,8 @@ const SECOND_TIER_FLAIR_ID = process.env["SECOND_TIER_FLAIR_TEMPLATE_ID"];
 const SECOND_TIER_EMOJI_ID = process.env["SECOND_TIER_FLAIR_EMOJI_ID"];
 const MINIMUM_SUB_COUNT = process.env["MINIMUM_SUB_COUNT"] || 100000;
 const MINIMUM_VIEW_COUNT = process.env["MINIMUM_VIEW_COUNT"] || 1000000;
+let flairEmojiId = '' as string 
+
 
 const reddit = new Reddit({
   username: process.env["REDDIT_USERNAME"] as string,
@@ -89,6 +91,9 @@ const verifyChannel = async (
   const { data: channel } = await youtube.channels.list(
     youtubeChannelListParams
   );
+  /* Debug: Look at channel response params  */
+  if (comment.author ='Flammy'){logger.debug(youtubeChannelListParams)}   // ### Broken and not working ### 
+  /* end debug */ 
 
   if (channel.items) {
     const { snippet, statistics } = channel.items[0];
@@ -112,71 +117,84 @@ const verifyChannel = async (
   } else {
     logger.error(`CHANNEL NOT FOUND`);
   }
+
+  
 };
 
 /**
  * Sets the flair on a specified Reddit author with their subscriberCount and viewCount
  * Applies flair template based on sub and viewer count
+ * Build the flair string to conditionally include the YouTube account name in the flair
  * https://www.reddit.com/dev/api
  * @param verification
  */
 const setFlair = async (verification: Verification) => {
   const { author } = verification.reddit.comment;
   const { statistics } = verification.youtube;
-
   logger.info(`Setting flair for /u/${author}`);
 
+  // Build the flair for this user 
+  let subCount = 0;
+  let viewCount = 0;
+  let flairTemplateId = '';
   if (statistics?.subscriberCount && statistics.viewCount) {
-    const subCount = +statistics.subscriberCount;
-    const viewCount = +statistics.viewCount;
+    subCount = +statistics.subscriberCount;
+    viewCount = +statistics.viewCount;
     const flairTemplateId =
-      subCount >= +MINIMUM_SUB_COUNT || viewCount >= +MINIMUM_VIEW_COUNT
-        ? FIRST_TIER_FLAIR_ID
-        : SECOND_TIER_FLAIR_ID;
-
-    const flairEmojiId =
-      subCount >= +MINIMUM_SUB_COUNT || viewCount >= +MINIMUM_VIEW_COUNT
-        ? FIRST_TIER_EMOJI_ID
-        : SECOND_TIER_EMOJI_ID;
-
-    await reddit.post(`${SUBREDDIT}/api/selectflair`, {
-      name: author,
-      text: `:${flairEmojiId}: Subs: ${formatNumber(
-        subCount
-      )} Views: ${formatNumber(viewCount)}`,
-      flair_template_id: flairTemplateId,
-    });
+    subCount >= +MINIMUM_SUB_COUNT || viewCount >= +MINIMUM_VIEW_COUNT
+      ? FIRST_TIER_FLAIR_ID || 'defaultFirstTierFlairId'
+      : SECOND_TIER_FLAIR_ID || 'defaultSecondTierFlairId';
+  flairEmojiId =
+    subCount >= +MINIMUM_SUB_COUNT || viewCount >= +MINIMUM_VIEW_COUNT
+      ? FIRST_TIER_EMOJI_ID || 'defaultFirstTierEmojiId'
+      : SECOND_TIER_EMOJI_ID || 'defaultSecondTierEmojiId';
   }
+  // Check if the comment contains the "INCLUDE" variable
+  const includeYouTubeName = verification.reddit.comment.body.includes("INCLUDE");
+
+  // Construct the flair text based on whether the "INCLUDE" variable is present
+  let flairText = `:${flairEmojiId}:`;
+  if (includeYouTubeName) {
+    flairText += ` Channel: ${author}`;
+  }
+  flairText += ` Subs: ${formatNumber(subCount)} Views: ${formatNumber(viewCount)}`;
+
+   // Truncate the username if the total flair length is longer than 64 characters
+   if (flairText.length > 64) {
+    const channelText = includeYouTubeName ? `Channel: ${author}` : "";
+    const remainingSpace = 64 - channelText.length - 10; // 10 is the length of ": Subs: "
+    const truncatedSubCount = includeYouTubeName ? formatNumber(subCount).toString().slice(0, remainingSpace) : formatNumber(subCount);
+    flairText = `${channelText} Subs: ${truncatedSubCount}... Views: ${formatNumber(viewCount)}`;
+  }
+
+
+  // Set the flair on Reddit
+  await reddit.post(`${SUBREDDIT}/api/selectflair`, {
+    name: author,
+    text: flairText,
+    flair_template_id: flairTemplateId,
+  });
 };
 
 async function main() {
   logger.info("Starting script");
   const startDate = moment.utc().subtract(PREVIOUS_DAYS, "days");
-
-  logger.info(
-    `Retrieving comments from https://www.reddit.com${SUBREDDIT}/comments/${ARTICLE}`
-  );
-  const comments = await getRedditComments(
-    `${SUBREDDIT}/comments/${ARTICLE}`,
-    startDate
-  );
-
+  logger.info(`Retrieving comments from https://www.reddit.com${SUBREDDIT}/comments/${ARTICLE}`);
+  const comments = await getRedditComments(`${SUBREDDIT}/comments/${ARTICLE}`, startDate);
   if (comments.length === 0) {
     logger.info(`No new valid comments since ${startDate}`);
   } else {
     logger.info(`Reviewing ${comments.length} comments since ${startDate}`);
   }
-
   for (let i = 0; i < comments.length; i++) {
     const verification = await verifyChannel(comments[i]);
-
     if (verification) {
       await setFlair(verification);
     }
   }
-
   logger.info("Script complete");
 }
+
 
 main().catch((e) => {
   logger.fatal(e);
