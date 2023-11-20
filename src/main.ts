@@ -71,7 +71,7 @@ const getRedditComments = async (articleSource: string, startDate: Moment) => {
 const verifyChannel = async (
   comment: Comment
 ): Promise<Verification | undefined> => {
-  const usernameReg = new RegExp(`u/${comment.author}`, "i");
+  const usernameReg = new RegExp(`/[uUrR]/${comment.author}`, "i"); // Updated regular expression pattern. Match if user users /u/username or /U/username or /r/username or /R/username 
   const youtubeChannelListParams: youtube_v3.Params$Resource$Channels$List = {
     part: ["snippet,statistics"],
   };
